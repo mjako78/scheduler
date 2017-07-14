@@ -1,5 +1,5 @@
 require "scheduler/version"
+require "scheduler/schedule"
 
 module Scheduler
-  # Your code goes here...
 end
