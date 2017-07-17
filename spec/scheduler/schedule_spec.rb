@@ -9,7 +9,7 @@ RSpec.describe Scheduler::Schedule do
 
       it 'should have default values' do
         expect(subject.teams.size).to eq 4
-        expect(subject.cycles).to eq 2
+        expect(subject.legs).to eq 2
         expect(subject.shuffle).to be true
         expect(subject.gamedays).to be_empty
       end
@@ -17,11 +17,11 @@ RSpec.describe Scheduler::Schedule do
 
     context "with parameters" do
       context "with even number of teams" do
-        subject(:instance) { Scheduler::Schedule.new teams, cycles: 4, shuffle: false }
+        subject(:instance) { Scheduler::Schedule.new teams, legs: 4, shuffle: false }
 
         it 'should have the setted values' do
           expect(subject.teams.size).to eq 4
-          expect(subject.cycles).to eq 4
+          expect(subject.legs).to eq 4
           expect(subject.shuffle).to be false
         end
       end
