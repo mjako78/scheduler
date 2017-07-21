@@ -12,6 +12,8 @@ RSpec.describe Scheduler::Schedule do
         expect(subject.legs).to eq 2
         expect(subject.shuffle).to be true
         expect(subject.gamedays).to be_empty
+        expect(subject.start_week).to eq 10
+        expect(subject.end_week).to eq 40
       end
     end
 
@@ -60,21 +62,37 @@ RSpec.describe Scheduler::Schedule do
 
   context '#generate' do
     let(:teams) { %w[ Dragons Tigers Lions Panthers ] }
-    let(:schedule) { Scheduler::Schedule.new teams }
-
-    before { schedule.generate }
+    let(:schedule) { Scheduler::Schedule.new teams, start_week: 10, end_week: 40 }
 
     it 'should have a (teams / 2) games per gameday' do
+      schedule.generate
       expect(schedule.gamedays).to_not be_empty
       schedule.gamedays.each { |gd| expect(gd.games.size).to eq(teams.size / 2) }
     end
 
     it 'should not have a team that play more than once per gameday' do
+      schedule.generate
       expect(schedule.gamedays).to_not be_empty
       schedule.gamedays.each do |gd|
         gd_teams = gd.games.collect { |g| [g.team_a, g.team_b] }.flatten
         unique_gd_teams = gd_teams.uniq
         expect(gd_teams).to eq unique_gd_teams
+      end
+    end
+
+    context "when gamedays are more than weeks" do
+      let(:start_week) { 10 }
+      let(:end_week)   { 20 }
+      let(:schedule)   { Scheduler::Schedule.new teams,
+        legs: 4,
+        start_week: start_week,
+        end_week: end_week
+      }
+
+      it 'should span start_week and end_week to accomodate all gamedays' do
+        schedule.generate
+        expect(schedule.spanned?).to be true
+        expect(schedule.start_week.upto(schedule.end_week).size).to eq schedule.gamedays.size
       end
     end
   end

@@ -1,6 +1,6 @@
 module Scheduler
   class Gameday
-    attr_accessor :round, :leg, :round_with_leg, :games
+    attr_accessor :round, :leg, :round_with_leg, :games, :week
 
     def initialize(params = {})
       @round = params[:round]
