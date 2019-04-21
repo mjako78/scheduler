@@ -2,18 +2,25 @@ require "spec_helper"
 
 RSpec.describe Scheduler::Schedule do
   context '#initialize' do
-    let(:teams) { %w[ Dragons Tigers Lions Panthers ] }
+    let(:teams)     { %w[ Dragons Tigers Lions Panthers ] }
+    let(:curr_year) { Date.today.year }
 
     context "without parameters" do
       subject(:schedule) { Scheduler::Schedule.new teams }
+      let(:default_start_date) { Date.new(curr_year, 3, 15) }
+      let(:default_end_date)   { Date.new(curr_year, 9, 30) }
 
       it 'should have default values' do
         expect(subject.teams.size).to eq 4
         expect(subject.legs).to eq 2
         expect(subject.shuffle).to be true
         expect(subject.gamedays).to be_empty
-        expect(subject.start_week).to eq 10
-        expect(subject.end_week).to eq 40
+        # Schedule can be based on weeks or dates, but not both
+        # Default is dates
+        expect(subject.start_date).to eq default_start_date
+        expect(subject.end_date).to eq default_end_date
+        expect(subject.start_week).to eq nil
+        expect(subject.end_week).to eq nil
       end
     end
 
@@ -40,6 +47,61 @@ RSpec.describe Scheduler::Schedule do
     end
 
     context "with invalid parameters" do
+      context 'with both dates and week or invalid ranges' do
+        let(:start_date) { "15/3/2019" }
+        let(:end_date)   { "30/9/2019" }
+        let(:start_week) { 10 }
+        let(:end_week)   { 40 }
+
+        it 'should raise error if there is both date and week' do
+          expect {
+            Scheduler::Schedule.new teams, start_date: start_date, start_week: start_week
+          }.to raise_error "You have specified invalid dates"
+        end
+
+        it 'should raise error if dates are invalid format' do
+          expect {
+            Scheduler::Schedule.new teams, start_date: start_date, end_date: "31/15/2019"
+          }.to raise_error "You have specified invalid dates"
+        end
+
+        it 'should raise error if end_date is before start_date' do
+          expect {
+            Scheduler::Schedule.new teams, start_date: start_date, end_date: "5/2/2019"
+          }.to raise_error "You have specified invalid dates"
+        end
+
+        it 'should raise error if not both start_date and end_date are specified' do
+          expect {
+            Scheduler::Schedule.new teams, start_date: start_date
+          }.to raise_error "You have specified invalid dates"
+        end
+
+        it 'should raise error if not both start_week and end_week are specified' do
+          expect {
+            Scheduler::Schedule.new teams, start_week: start_week
+          }.to raise_error "You have specified invalid dates"
+        end
+
+        it 'should raise error if end_week is before start_week' do
+          expect {
+            Scheduler::Schedule.new teams, start_week: start_week, end_week: 5
+          }.to raise_error "You have specified invalid dates"
+        end
+
+        it 'should raise error if start_week or end_week are less or equal than zero' do
+          expect {
+            Scheduler::Schedule.new teams, start_week: -1, end_week: end_week
+          }.to raise_error "You have specified invalid dates"
+        end
+
+        it 'should raise error if start_week or end_week are string' do
+          expect {
+            Scheduler::Schedule.new teams, start_week: "abc", end_week: end_week
+          }.to raise_error "You have specified invalid dates"
+        end
+      end
+
       context "with repeating team" do
         let(:teams) { %w[ Dragons Tigers Lions Panthers Hawks Dragons ]}
 

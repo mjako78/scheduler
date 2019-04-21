@@ -1,16 +1,28 @@
 module Scheduler
   class Schedule
-    attr_accessor :teams, :legs, :shuffle, :start_week, :end_week, :span
+    attr_accessor :teams, :legs, :shuffle, :start_date, :end_date, :start_week, :end_week, :span
     attr_reader   :gamedays
 
     def initialize(teams, params = {})
       raise "You have specified a repeating team"  unless teams.uniq == teams
       raise "You need to specify at least 2 teams" unless teams.size >= 2
+      begin
+        @start_date = params[:start_date].nil? ? nil : Date.parse(params[:start_date])
+        @end_date   = params[:end_date].nil? ?   nil : Date.parse(params[:end_date])
+      rescue ArgumentError
+        raise "You have specified invalid dates"
+      end
+      @start_week = params[:start_week].nil? ? nil : params[:start_week]
+      @end_week   = params[:end_week].nil? ?   nil : params[:end_week]
+      raise "You have specified invalid dates" unless valid_dates?
+
       @teams      = teams
       @legs       = params[:legs] || 2
       @shuffle    = params[:shuffle].nil? ? true : params[:shuffle]
-      @start_week = params[:start_week] || 10
-      @end_week   = params[:end_week] || 40
+      unless with_dates? && with_weeks?
+        @start_date = Date.new(Date.today.year, 3, 15)
+        @end_date   = Date.new(Date.today.year, 9, 30)
+      end
       @teams << nil if teams.size.odd?
       @gamedays = []
       @span     = false
@@ -77,6 +89,39 @@ module Scheduler
     end
 
     private
+      # Check if dates are valid
+      def valid_dates?
+        return true if @start_date.nil? &&
+                       @end_date.nil? &&
+                       @start_week.nil? &&
+                       @end_week.nil?
+        return false if with_dates? && with_weeks?
+        return false if !with_dates? && !with_weeks?
+        return @start_date < @end_date if with_dates?
+        if with_weeks?
+          return false unless @start_week.is_a?(Integer) && @end_week.is_a?(Integer)
+          return false if @start_week <= 0 || @end_week <= 0
+          return @start_week < @end_week
+        end
+        true
+      end
+
+      # Check if dates are specified
+      def with_dates?
+        return @start_week.nil? &&
+               @end_week.nil? &&
+               !@start_date.nil? &&
+               !@end_date.nil?
+      end
+
+      # Check if weeks are specified
+      def with_weeks?
+        return @start_date.nil? &&
+               @end_date.nil? &&
+               !@start_week.nil? &&
+               !@end_week.nil?
+      end
+
       # Dispatch games into available weeks
       def dispatch_weeks weeks
         if @gamedays.size < weeks.size
