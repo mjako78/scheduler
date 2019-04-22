@@ -19,7 +19,7 @@ module Scheduler
       @teams      = teams
       @legs       = params[:legs] || 2
       @shuffle    = params[:shuffle].nil? ? true : params[:shuffle]
-      unless with_dates? && with_weeks?
+      if !with_dates? && !with_weeks?
         @start_date = Date.new(Date.today.year, 3, 15)
         @end_date   = Date.new(Date.today.year, 9, 30)
       end
@@ -65,8 +65,8 @@ module Scheduler
         end
       end until current_round == @teams.size - 1 && current_leg == @legs
 
-      #dispatch_weeks(@gamedays, @start_week, @end_week)
-      dispatch_weeks @start_week.upto(end_week).to_a
+      dispatch_weeks @start_week.upto(@end_week).to_a if with_weeks?
+      dispatch_dates if with_dates?
     end
 
     # Returns true if start and / or end week are been spanned
@@ -80,7 +80,7 @@ module Scheduler
       s = ""
       s << "#{@gamedays.size} gamedays\n"
       @gamedays.each do |gd|
-        s << "=== Round #{gd.round_with_leg} [week: #{gd.week}] ===\n"
+        s << "=== Round #{gd.round_with_leg} [date: #{gd.date}] ===\n"
         gd.games.each do |g|
           s << "#{g.team_a} VS #{g.team_b}\n"
         end
@@ -129,7 +129,60 @@ module Scheduler
         elsif @gamedays.size > weeks.size
           weeks = add_weeks weeks, @gamedays.size
         end
-        @gamedays.each.with_index { |gd, i| gd.week = weeks[i] }
+        @gamedays.each.with_index { |gd, i| gd.date = weeks[i] }
+      end
+
+      # Dispatch games ingo available dates
+      def dispatch_dates
+        sundays = every_sunday(@start_date, @end_date)
+        @start_date = sundays.first
+        @end_date   = sundays.last
+        if @gamedays.size < sundays.size
+          dates = remove_dates sundays, @gamedays.size
+        elsif @gamedays.size > sundays.size
+          dates = add_dates sundays, @gamedays.size
+        end
+        @gamedays.each.with_index { |gd, i| gd.date = dates[i] }
+      end
+
+      # Returns all sundays dates between 2 dates
+      def every_sunday d1, d2
+        sundays = []
+        sunday = d1 + ((7 - d1.wday) % 7)
+        while sunday < d2
+          sundays << sunday
+          sunday += 7
+        end
+        sundays
+      end
+
+      # Remove some dates from the list
+      def remove_dates dates, gamedays
+        x = (0...gamedays).map {
+          |i| (1 + i * (dates.size - 1) / (gamedays - 1.0)).round - 1
+        }
+        dates.to_a.values_at(*x)
+      end
+
+      # Add some dates to the list
+      def add_dates dates, gamedays
+        # byebug
+        span_size = gamedays - dates.size
+        span_before = span_size / 2
+        span_after = span_size - span_before
+        new_start_date = @start_date - (7 * span_before)
+        if new_start_date.year < @start_date.year
+          i = 0
+          while new_start_date.year < @start_date.year
+            new_start_date += 7
+            i += 1
+          end
+          span_after += i
+        end
+        @start_date = new_start_date
+        @end_date += (7 * span_after)
+        @span = true
+        (@start_date..@end_date).step(7).to_a
       end
 
       # Remove some weeks from the list
